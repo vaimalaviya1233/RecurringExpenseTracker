@@ -1,7 +1,6 @@
 package de.dbauer.expensetracker
 
 import Constants
-import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.os.Build
@@ -32,6 +31,11 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import model.DatabaseBackupRestore
 import model.database.UserPreferencesRepository
+import model.notification.NotificationChannel
+import model.notification.NotificationData
+import model.notification.NotificationPoller
+import model.notification.PersistentNotificationQueue
+import model.notification.startAlarmLooper
 import org.jetbrains.compose.resources.stringResource
 import org.koin.android.ext.android.get
 import recurringexpensetracker.app.generated.resources.Res
@@ -60,7 +64,7 @@ class MainActivity : AppCompatActivity() {
             lifecycleScope.launch {
                 if (it.resultCode == FINISH_TASK_WITH_ACTIVITY) {
                     triggerAuthPrompt()
-                } else if (it.resultCode == Activity.RESULT_CANCELED) {
+                } else if (it.resultCode == RESULT_CANCELED) {
                     userPreferencesRepository.biometricSecurity.save(false)
                 }
             }
@@ -69,6 +73,16 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+
+        lifecycleScope.launch {
+            PersistentNotificationQueue(userPreferencesRepository.expenseNotifications).add(
+                NotificationData(0, "Title", "Description", NotificationChannel.ExpenseReminder),
+            )
+            val test = PersistentNotificationQueue(userPreferencesRepository.expenseNotifications).peek()
+            Log.e("Test", test.toString())
+        }
+
+        startAlarmLooper(NotificationPoller::class.java)
 
         lifecycleScope.launch {
             biometricPromptManager.promptResult.collectLatest {
